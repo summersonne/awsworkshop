@@ -1,0 +1,70 @@
+  ###############################################################################
+  # Create a firewall rule (on the existing VPC) which only allows access from
+  # the following:
+  #
+  #    - Inbound - Your IP address (SSH, HTTP); Ansible IP address (SSH)
+  #    - Outbound - HTTPS & HTTP to any IP address
+  #
+  # I will use ec2_group plugin for Ansible:
+  # shorturl.at/joEF2  
+  ##############################################################################
+
+  # Gather information about subnet_id and register it as variable
+- ec2_vpc_subnet_info:
+  register: subnet
+- debug: var=subnet.subnets[1].subnet_id
+
+  # Gather information about all VPC subnets
+- ec2_vpc_net_facts:
+  register: vpc
+- debug: var=vpc.vpcs[0].vpc_id
+
+  # Creating firewall rules and security froup
+- name: Create security group
+  ec2_group:
+    name: "{{ project_name }}_security_group"
+    description: "{{ project_name }} security group"
+    region: "{{ region }}"
+    rules:
+      - proto: tcp  # ssh
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ personalip }}"
+      - proto: tcp  # http
+        from_port: 80
+        to_port: 80
+        cidr_ip: "{{ personalip }}"
+    rules_egress:
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+  register: workshop_firewall
+
+  ##############################################################################
+  # Launch a Linux instance from an image. Assign it to the firewall rule
+  # created in (1). You can select which flavor of Linux to launch.
+  #
+  # Add a tag EnvName with the value "Test Environment"
+  ##############################################################################
+
+- name: Create an EC2 instance
+  ec2:
+    key_name: "{{ project_name }}-{{ env }}-key"
+    region: "{{ region }}"
+    group_id: "{{ workshop_firewall.group_id }}"
+    instance_type: "{{ instance_type }}"
+    image: "{{ ami }}"
+    wait: yes
+    instance_tags:
+        env: "{{ env }}"
+        Name: "{{ env }}"
+        EnvName: "{{ tag }}"
+    count_tag: env
+    exact_count: 1
+    vpc_subnet_id: "{{ subnet.subnets[1].subnet_id }}"
+    assign_public_ip: yes
