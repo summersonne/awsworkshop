@@ -12,12 +12,26 @@
   # Gather information about subnet_id and register it as variable
 - ec2_vpc_subnet_info:
   register: subnet
-# - debug: var=subnet.subnets[1].subnet_id # debugging vars for any case
+ # - debug: var=subnet.subnets[1].subnet_id # debugging vars for any case
 
   # Gather information about all VPC subnets
 - ec2_vpc_net_facts:
   register: vpc
-# - debug: var=vpc.vpcs[0].vpc_id # debugging vars for any case
+ # - debug: var=vpc.vpcs[0].vpc_id # debugging vars for any case
+
+ # I need to get my public IP in order to supply this to a firewall rule later
+- name: Get and store instance public IP address
+  ipify_facts:
+  retries: 3
+  delay: 3
+  register: result
+  until: result is not failed
+  check_mode: no
+  
+- name: What is my IP?
+  debug:
+    var: ipify_public_ip
+  check_mode: no
 
   # Creating firewall rules and security froup
 - name: Create security group
@@ -34,6 +48,10 @@
         from_port: 80
         to_port: 80
         cidr_ip: "{{ personalip }}"
+      - proto: tcp  # http
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ ipify_public_ip }}/32"
     rules_egress:
       - proto: tcp
         from_port: 443
