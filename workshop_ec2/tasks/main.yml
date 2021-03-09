@@ -12,12 +12,12 @@
   # Gather information about subnet_id and register it as variable
 - ec2_vpc_subnet_info:
   register: subnet
-- debug: var=subnet.subnets[1].subnet_id
+# - debug: var=subnet.subnets[1].subnet_id # debugging vars for any case
 
   # Gather information about all VPC subnets
 - ec2_vpc_net_facts:
   register: vpc
-- debug: var=vpc.vpcs[0].vpc_id
+# - debug: var=vpc.vpcs[0].vpc_id # debugging vars for any case
 
   # Creating firewall rules and security froup
 - name: Create security group
@@ -61,7 +61,6 @@
     image: "{{ ami }}"
     wait: yes
     instance_tags:
-        env: "{{ env }}"
         Name: "{{ env }}"
         EnvName: "{{ tag }}"
     count_tag: env
